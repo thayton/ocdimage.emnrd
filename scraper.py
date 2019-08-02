@@ -1,6 +1,8 @@
 import re
 import csv
 import json
+import logging
+import argparse
 import requests
 
 from bs4 import BeautifulSoup
@@ -10,6 +12,12 @@ class OcdImageScraper(object):
     def __init__(self):
         self.url = 'http://ocdimage.emnrd.state.nm.us/imaging/CaseFileCriteria.aspx'
         self.session = requests.Session()
+
+        FORMAT = "[ %(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
+        logging.basicConfig(format=FORMAT)
+
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
 
     def csv_save(self, data):
         headers = [
@@ -71,6 +79,8 @@ class OcdImageScraper(object):
         form = soup.select_one('form#form1')
         data = {}
 
+        self.logger.info(f'Going to next page')
+        
         for i in form.find_all('input'):
             if i.get('name'):
                 data[i['name']] = i.get('value')
@@ -111,8 +121,10 @@ class OcdImageScraper(object):
 
                 records.append(rec)
 
+            self.logger.info(f'{len(records)} results')
             resp = self.goto_next_page(soup)
 
+        self.logger.info(f'Completed scraping with {len(records)} results')            
         return records
         
     def scrape(self, filing_date='07/01/2019'):
@@ -120,5 +132,10 @@ class OcdImageScraper(object):
         self.csv_save(records)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--filing-date", help="Filing date in format mm/dd/yyyy", required=True)
+
+    args = parser.parse_args()
+
     scraper = OcdImageScraper()
-    scraper.scrape()
+    scraper.scrape(args.filing_date)
