@@ -45,7 +45,7 @@ class OcdImageScraper(object):
     
     def submit_search(self, filing_date='07/01/2019'):
         resp = self.session.get(self.url)
-        soup = BeautifulSoup(resp.text, 'lxml')
+        soup = BeautifulSoup(resp.text, 'html.parser')
 
         form = soup.select_one('form#form1')
         data = {
@@ -106,7 +106,7 @@ class OcdImageScraper(object):
         resp = self.submit_search(filing_date)
 
         while resp != None:
-            soup = BeautifulSoup(resp.text, 'lxml')
+            soup = BeautifulSoup(resp.text, 'html.parser')
             
             for a in soup.select('div#pnlList > table a'):
                 tr = a.find_parent('tr')
