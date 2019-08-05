@@ -277,7 +277,8 @@ class RccTexasScraper(object):
         records = self.get_records(from_date, to_date, filing_operator)
 
         # Get the links to the forms from the details page
-        for r in records:
+        for i,r in enumerate(records, 1):
+            self.logger.info(f'Record {i} of {len(records)}')
             self.get_download_links(r)
 
         # Download the attachments
