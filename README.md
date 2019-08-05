@@ -6,7 +6,7 @@
 - [Redis](https://redis.io/download)
 
 The webapps-rrc-texas.py script uses Redis for caching. The script needs to know the password used in your Redis setup. You'll
-need to set the password that Redis uses on your setup in the script in the [init_method](https://github.com/thayton/ocdimage.emnrd/blob/83b7f8dcdee386d963141bf8c81122655fbf158c/webapps-rrc-texas.py#L68). It's currently set to 'foobared' as a placeholder.
+need to set the password that Redis uses on your setup in the script in the [init_cache](https://github.com/thayton/ocdimage.emnrd/blob/83b7f8dcdee386d963141bf8c81122655fbf158c/webapps-rrc-texas.py#L68). It's currently set to 'foobared' as a placeholder.
 
 ## Setup
 
