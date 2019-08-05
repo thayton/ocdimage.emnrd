@@ -1,3 +1,4 @@
+downloads/
 *.csv
 venv
 *.pyc
