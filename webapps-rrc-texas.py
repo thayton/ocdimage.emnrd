@@ -1,7 +1,9 @@
 import os
 import re
 import csv
+import time
 import json
+import random
 import shutil
 import logging
 import argparse
@@ -11,6 +13,9 @@ import mimetypes
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime
+from redis import StrictRedis
+from redis.exceptions import RedisError
+from rediscache import RedisCache
 
 #
 # 1. Plug in Date From, Date To, and Filing Operator No (e.g., 01/01/2018, 01/01/2019, 251726)
@@ -50,11 +55,70 @@ class RccTexasScraper(object):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
-    def is_already_downloaded(self, filename):
-        pass
-    
-    def download_forms(self, record, check_if_already_downloaded=True):
-        # download / api-no / operator-name / <form-name>
+        self.init_cache()
+
+    def init_cache(self):
+        '''
+        Attempt to connect to Redis (via ping) or set cache to None if that fails
+        '''
+        redis_config = {
+            'host': 'localhost',
+            'port': 6379,
+            'db': 0,
+            'password': 'foobared' # <-- change to your own redis password!
+        }
+
+        client = StrictRedis(**redis_config)
+        try:
+            client.ping()
+        except RedisError as ex:
+            self.logger.warning(f'Failed to connect to Redis - {ex}')
+            self.cache = None
+        else:
+            self.cache = RedisCache(client=client)
+
+    def delay(self):
+        '''
+        Put a random delay between 10-20 sec to avoid getting blocked by 
+        the server and getting the 'exceeded the maximum number of queries
+        per minute' warning
+        '''
+        time.sleep(random.randint(10,20))
+            
+    def cached_http_get(self, url, **kwargs):
+        '''
+        Retrieve URL page from cache if cache is configured
+        '''
+        html = None
+
+        if self.cache:
+            try:
+                html = self.cache[url]
+            except KeyError:
+                pass
+            else:
+                self.logger.debug(f'Retrieved {url} from cache')
+
+        if html is None:
+            self.delay()
+            
+            resp = self.session.get(url, **kwargs)
+            html = resp.text
+
+            if self.cache != None and resp.status_code == 200:
+                self.cache[url] = html
+
+        return html
+
+    def download_forms(self, record, skip_already_downloaded=True):
+        '''
+        Retrieve the forms/attachments for the given record.
+
+        Forms are saved into directories named according to the API No
+        and Operator Name:
+
+        downloads/ <api-no> / <operator-name> / <form-name>
+        '''
         self.logger.info(f'Getting forms at {record["url"]}')
 
         subdir = os.path.realpath(os.path.join(
@@ -63,6 +127,10 @@ class RccTexasScraper(object):
         os.makedirs(subdir, exist_ok=True)
 
         for f in record['forms']:
+            # Set stream to True so we don't download the actual data until we've determined
+            # it's necessary. We just need the response headers initially to determine the
+            # file extension. If we've already got the file and skip_already_downloaded is
+            # True we just close the stream and move on...
             resp = self.session.get(f['url'], headers=self.headers, stream=True)
             file_ext = mimetypes.guess_extension(resp.headers['Content-Type'])
 
@@ -78,25 +146,28 @@ class RccTexasScraper(object):
                 filename = f'{f["name"]}{file_ext}'
 
             path = os.path.realpath(os.path.join(subdir, filename))
-            if check_if_already_downloaded and os.path.exists(path):
+
+            if skip_already_downloaded and os.path.exists(path):
                 self.logger.info(f'Form {path} already downloaded - skipping download')
+                resp.close() # release connection
                 continue
 
             self.logger.info(f'Downloading {os.path.basename(path)}')
+
             with open(path, 'wb') as fd:
                 resp.raw.decode_content = True
                 shutil.copyfileobj(resp.raw, fd)
 
         self.logger.info(f'Finished downloading {len(record["forms"])} forms at {record["url"]}')
 
-    def get_record_details(self, record):
-        #XXX Caching here with Redis
-        resp = self.session.get(record['url'], headers=self.headers)
-        soup = BeautifulSoup(resp.text, 'html.parser')
+    def get_download_links(self, record):
+        '''
+        Retrieve the operator name and attachment link URLs for the given record
+        '''
+        self.logger.info(f'Getting download links at {record["url"]}')
 
-        f = lambda t: t.name == 'td' and t.text.strip().startswith('Operator Name:')
-        td = soup.find(f)
-        record['operator-name'] = td.strong.text.strip()
+        html = self.cached_http_get(record['url'], headers=self.headers)
+        soup = BeautifulSoup(html, 'html.parser')
 
         f = lambda t: t.name == 'th' and t.text.strip() == 'Form/Attachment'
         th = soup.find(f)
@@ -182,10 +253,10 @@ class RccTexasScraper(object):
                 rec['tracking-no'] = a.text.strip()
                 rec['url'] = self.url + re.sub(r';jsessionid=[^?]*', '', a['href'])
                 rec['api-no'] = td[3].text.strip()
-                
+                rec['operator-name'] = td[7].text.strip()
+
                 records.append(rec)
 
-            break #XXX
             self.logger.info(f'{len(records)} records')
 
             f = lambda t: t.name == 'a' and t.text.strip() == '[Next>]'
@@ -194,7 +265,8 @@ class RccTexasScraper(object):
                 break
 
             self.logger.info('Going to next page')
-
+            self.delay()
+            
             url = urljoin(self.url, next_page['href'])
             resp = self.session.get(url, headers=self.headers)
             
@@ -206,14 +278,16 @@ class RccTexasScraper(object):
 
         # Get the links to the forms from the details page
         for r in records:
-            self.get_record_details(r)
-            break #XXX
+            self.get_download_links(r)
 
         # Download the attachments
         for r in records:
             self.download_forms(r)
-            
+
 def is_valid_date(s):
+    '''
+    Ensure the user enters a date in format mm/dd/yyyy
+    '''
     try:
         d = datetime.strptime(s, "%m/%d/%Y")
     except ValueError:

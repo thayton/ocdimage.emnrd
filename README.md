@@ -3,7 +3,11 @@
 ## Requirements
 
 - Python 3
-    
+- [Redis](https://redis.io/download)
+
+The webapps-rrc-texas.py script uses Redis for caching. The script needs to know the password used in your Redis setup. You
+can configure the password in the script in [init_method](). It's currently set to 'foobared' as a placeholder.
+
 ## Setup
 
     $ python -m venv venv
