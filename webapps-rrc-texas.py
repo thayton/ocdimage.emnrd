@@ -282,7 +282,8 @@ class RccTexasScraper(object):
             self.get_download_links(r)
 
         # Download the attachments
-        for r in records:
+        for i,r in enumerate(records, 1):
+            self.logger.info(f'Record {i} of {len(records)}')
             self.download_forms(r)
 
 def is_valid_date(s):
