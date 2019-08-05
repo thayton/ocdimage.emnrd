@@ -18,18 +18,18 @@ can configure the password in the script in [init_method](). It's currently set 
 
 Specify the filing date using the '-f/--filing-date' command line option:
 
-    $ python scraper.py -f '<mm/dd/yyyy>'
+    $ python ocdimage.py -f '<mm/dd/yyyy>'
 
 Eg,
 
-    $ python scraper.py -f '07/01/2019'
-    [ scraper.py:124 - get_records() ] 25 results
-    [ scraper.py:82 - goto_next_page() ] Going to next page
-    [ scraper.py:124 - get_records() ] 50 results
-    [ scraper.py:82 - goto_next_page() ] Going to next page
-    [ scraper.py:124 - get_records() ] 52 results
-    [ scraper.py:82 - goto_next_page() ] Going to next page
-    [ scraper.py:127 - get_records() ] Completed scraping with 52 results
+    $ python ocdimage.py -f '07/01/2019'
+    [ ocdimage.py:124 - get_records() ] 25 results
+    [ ocdimage.py:82 - goto_next_page() ] Going to next page
+    [ ocdimage.py:124 - get_records() ] 50 results
+    [ ocdimage.py:82 - goto_next_page() ] Going to next page
+    [ ocdimage.py:124 - get_records() ] 52 results
+    [ ocdimage.py:82 - goto_next_page() ] Going to next page
+    [ ocdimage.py:127 - get_records() ] Completed scraping with 52 results
 
 Results are written into the CSV file records.csv in the current directory.
 
