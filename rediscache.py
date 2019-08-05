@@ -43,4 +43,4 @@ class RedisCache:
         data = val.encode(self.encoding)
         if self.compress:
             data = zlib.compress(data)
-        self.client.setex(key, timedelta(days=2), data) # Expires in 2 days
+        self.client.setex(key, timedelta(days=5), data) # Expires in 2 days
