@@ -16,6 +16,8 @@ need to set the password that Redis uses on your setup in the script in the [ini
 
 ## Usage
 
+### ocdimage.py Scraper
+
 Specify the filing date using the '-f/--filing-date' command line option:
 
     $ python ocdimage.py -f '<mm/dd/yyyy>'
@@ -33,3 +35,8 @@ Eg,
 
 Results are written into the CSV file records.csv in the current directory.
 
+### webapps-rrc-texas.py Scraper
+
+Specify the from date, to date, and operator number using the '-f', '-t' and '-o' command line options:
+
+    $ python webapps-rrc-texas.py -f '01/01/2018' -t '01/01/2019' -o '251726'
