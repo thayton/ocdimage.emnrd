@@ -53,8 +53,10 @@ class RccTexasScraper(object):
     def is_already_downloaded(self, filename):
         pass
     
-    def download_forms(self, record):
-        # download / api-no / operator-name / <form-name>        
+    def download_forms(self, record, check_if_already_downloaded=True):
+        # download / api-no / operator-name / <form-name>
+        self.logger.info(f'Getting forms at {record["url"]}')
+
         subdir = os.path.realpath(os.path.join(
             os.path.dirname(__file__), f'downloads/{record["api-no"]}/{record["operator-name"]}/'
         ))
@@ -63,16 +65,29 @@ class RccTexasScraper(object):
         for f in record['forms']:
             resp = self.session.get(f['url'], headers=self.headers, stream=True)
             file_ext = mimetypes.guess_extension(resp.headers['Content-Type'])
-            path = os.path.realpath(os.path.join(subdir, f'{f["name"]}{file_ext}'))
+
+            # Add the numeric suffic to the filenames as some of the form/attachment names
+            # are duplicated. Ie, there's multiple rows named 'Plat' or 'Other' etc. so this
+            # is a way to differentiate them
+            r = re.compile(r'dpimages/r/(\d+)$')
+            m = re.search(r, f['url'])
+
+            if m:
+                filename = f'{f["name"]}-{m.group(1)}{file_ext}'
+            else:
+                filename = f'{f["name"]}{file_ext}'
+
+            path = os.path.realpath(os.path.join(subdir, filename))
+            if check_if_already_downloaded and os.path.exists(path):
+                self.logger.info(f'Form {path} already downloaded - skipping download')
+                continue
 
             self.logger.info(f'Downloading {os.path.basename(path)}')
-
-            #if os.path.exists(path):
-            #    self.logger.info(f'Form {form["name"]}.pdf already downloaded')
-            #    continue
             with open(path, 'wb') as fd:
                 resp.raw.decode_content = True
                 shutil.copyfileobj(resp.raw, fd)
+
+        self.logger.info(f'Finished downloading {len(record["forms"])} forms at {record["url"]}')
 
     def get_record_details(self, record):
         #XXX Caching here with Redis
