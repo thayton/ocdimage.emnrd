@@ -153,6 +153,7 @@ class RccTexasScraper(object):
                 continue
 
             self.logger.info(f'Downloading {os.path.basename(path)}')
+            time.sleep(random.randint(1,3))
 
             with open(path, 'wb') as fd:
                 resp.raw.decode_content = True
